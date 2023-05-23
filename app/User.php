@@ -29,6 +29,14 @@ class User extends Authenticatable
         'password', 'remember_token',
     ];
 
+    public static function getUserDetailById($id)
+    {
+        return User::find($id);
+    }
+public static function getUserById($id)
+    {
+        return User::with('emp')->where('bill_id','=', $bill_id)->get();
+    }
     /**
      * The attributes that should be cast to native types.
      *

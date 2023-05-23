@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use Validator;
 use Illuminate\Http\Request;
 use App\Customer;
+use App\Supply;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use App\User;
@@ -16,7 +17,7 @@ class SupplyController extends ApiController
     {
     	$result = array();
     	try{
-    	//$customer = new Customer();
+    	//$supply = new Customer();
     	$res = Customer::all();
     	$result['data'] = $res->toArray();
         $result['status'] = true;
@@ -37,41 +38,48 @@ class SupplyController extends ApiController
     {
     	$result = array();
     	try{
-    		if(!is_numeric($req->mobile) || $req->mobile ==''){
-    			throw new \Exception('Invalid data in Mobile Number field');
+    		if(!is_numeric($req->btl_delievered) || $req->btl_delievered ==''){
+    			throw new \Exception('Invalid data in Bottle Delivered field');
     		}
-    		elseif($req->alt_mob !=''){
-    			if(!is_numeric($req->alt_mob))
-    				throw new \Exception('Invalid data in Alternate Mobile Number field');
+    		elseif(!is_numeric($req->empty_btl_returned) || $req->empty_btl_returned ==''){
+    				throw new \Exception('Invalid data in Empty Returned field');
     		}
-			elseif(!is_numeric($req->rate)  || $req->rate ==''){
-    				throw new \Exception('Invalid data in Rate field');
+			elseif(!is_numeric($req->balance_btl)  || $req->balance_btl ==''){
+    				throw new \Exception('Invalid data in Balance Bottles field');
     		}
-    		elseif(!is_numeric($req->deposit ) || $req->deposit ==''){
-    				throw new \Exception('Invalid data in Deposit field');
+    		elseif(!is_numeric($req->amount_paid ) || $req->amount_paid ==''){
+    				throw new \Exception('Invalid data in Amount field');
     		}
+            elseif(!is_numeric($req->customer_id ) || $req->customer_id ==''){
+                    throw new \Exception('Invalid data in Customer ID field');
+            }
+            elseif($req->delivery_date ==''){
+                    throw new \Exception('Invalid data in Delivery Date field');
+            }
 
+        $sdate = date("Y") . '-01-' . date("m");
+        $edate = date("Y") . '-'.date("t").'-' . date("m");
 
-    	$customer = new Customer;
-    	$customer->code = $customer->genCode(); 
-    	$customer->first_name = $req->first_name;
-    	$customer->last_name = $req->last_name;
-    	$customer->nic = $req->nic;
-    	$customer->mobile = $req->mobile;
-    	$customer->alt_mob = $req->alt_mob ;
-    	$customer->address = $req->address ;
-    	$customer->landmark = $req->landmark ;
-    	$customer->symbol = $req->symbol ;    	
-    	$customer->rate = $req->rate ;
-    	$customer->deposit = $req->deposit ;
-    	$customer->required_bottles = $req->required_bottles ;
-    	$customer->billing = $req->billing ;
-    	$customer->delivery_days = $req->delivery_days ;
-    	$customer->active = 1 ;
-    	$customer->date_create = Carbon::now()->toDateTimeString(); ;
-    	$customer->date_update = Carbon::now()->toDateTimeString();;
-		$customer->save();
-    	$result['data'] = $customer->toArray();
+    	$supply = new Supply;
+    	$supply->customer_id = $req->customer_id;
+    	$supply->btl_delievered = $req->btl_delievered;
+    	$supply->emtry_btl_returned = $req->empty_btl_returned;
+    	$supply->balance_btl = $req->balance_btl;
+    	$supply->amount_advance = $req->amount_advance ;
+    	$supply->amount_paid = $req->amount_paid ;
+    	$supply->amount_balance = $req->amount_balance ;
+        $timestamp = strtotime($req->delivery_date);             
+            $dd = date("Y-m-d", $timestamp);
+    	$supply->delivery_date = $dd ;    	
+    	$supply->remarks_id = $req->remarks_id ;
+    	$supply->is_balance = $req->is_balance ;
+    	//$supply->is_billed = $req->is_billed ;
+    	//$supply->billed_date = $req->billed_date ;
+    	$supply->active = 1 ;
+    	$supply->date_created = Carbon::now()->toDateTimeString(); ;
+    	$supply->date_updated = Carbon::now()->toDateTimeString();;
+		$supply->save();
+    	$result['supply'] = Supply::getSupplyByDate($sdate,$edate, $req->customer_id);//$supply->toArray();
         $result['status'] = true;
  
         }catch(\Exception $e){
@@ -80,7 +88,7 @@ class SupplyController extends ApiController
         }
         
         if($result['status']){
-            return $this->success($result['data']);
+            return response()->json($result, $this->successStatus); 
         }else{
             return $this->fail($result['message']);
         }
@@ -101,18 +109,18 @@ class SupplyController extends ApiController
 			
 
 
-    	$customer = Customer::find(Auth::user()->id);
-     	$customer->first_name = $req->first_name;
-    	$customer->last_name = $req->last_name;
-    	$customer->nic = $req->nic;
-    	$customer->email = $req->email;
-    	$customer->mobile = $req->mobile;
-    	$customer->alt_mob = $req->alt_mob ;
-    	$customer->address = $req->address ;
-    	$customer->landmark = $req->landmark ;
-    	$customer->date_update = Carbon::now()->toDateTimeString();;
-		$customer->save();
-    	$result['data'] = $customer->toArray();
+    	$supply = Customer::find(Auth::user()->id);
+     	$supply->first_name = $req->first_name;
+    	$supply->last_name = $req->last_name;
+    	$supply->nic = $req->nic;
+    	$supply->email = $req->email;
+    	$supply->mobile = $req->mobile;
+    	$supply->alt_mob = $req->alt_mob ;
+    	$supply->address = $req->address ;
+    	$supply->landmark = $req->landmark ;
+    	$supply->date_update = Carbon::now()->toDateTimeString();;
+		$supply->save();
+    	$result['supply'] = $supply->toArray();
         $result['status'] = true;
         $result['_token'] = $req->bearerToken();
  
@@ -179,7 +187,31 @@ class SupplyController extends ApiController
   	
     	return response()->json(['user'=>Auth::user()], $this->successStatus); 
     }
+    public function getSupplyRecords(Request $request)
+    {
 
+
+        $result = array();
+        try{
+            $timestamp = strtotime($request->start_date);             
+            $sdate = date("Y-m-d", $timestamp);
+            $timestamp = strtotime($request->end_date);             
+            $edate = date("Y-m-d", $timestamp); 
+
+        $supply = Supply::getSupplyByDate($sdate,$edate, $request->uid );
+
+
+        $result['supply'] = $supply;
+
+        }catch(\Exception $e){
+            $result['status'] = false;
+            $result['message'] = 'Operation failed due to '. $e->getMessage();
+        }
+        
+        
+            // print_r($supply);
+        return response()->json($result, $this->successStatus); 
+    }
     public function getSummary()
     {
   		$sDate = '2020-01-04';

@@ -15,7 +15,46 @@ class Supply extends Model
 public $timestamps = false;
     public static function getSupplyByDate($sDate, $eDate, $uid)
     {
-    	return Supply::with('customer')->where('delivery_date','>=', $sDate)->where('delivery_date','<=', $eDate)->where('customer_id','=', $uid)->get();
+
+
+        if($uid == 0)
+        {
+
+            return Supply::with('customer')->where('delivery_date','>=', $sDate)->where('delivery_date','<=', $eDate)->get();
+        }
+        else
+        {
+            
+
+    	   return Supply::with('customer')->where('delivery_date','>=', $sDate)->where('delivery_date','<=', $eDate)->where('customer_id','=', $uid)->get();
+        }
+        
+    }
+
+
+    public static function getSupplyByDateForBills($sDate, $eDate, $uid, $is_billed)
+    {
+
+
+        if($uid == 0)
+        {
+
+            return Supply::with('customer')
+            ->where('is_billed','=', $is_billed)
+            ->where('delivery_date','>=', $sDate)
+            ->where('delivery_date','<=', $eDate)->get();
+        }
+        else
+        {
+            
+
+           return Supply::with('customer')
+           ->where('is_billed','=', $is_billed)
+           ->where('delivery_date','>=', $sDate)
+           ->where('delivery_date','<=', $eDate)
+           ->where('customer_id','=', $uid)->get();
+        }
+        
     }
 
     public static function getSupplyByYear($uid)
